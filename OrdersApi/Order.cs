@@ -3,11 +3,13 @@
     public class Order
     {
         public string Id { get; set; }
+        public string CustomerId { get; set; }
         public List<Item> Items { get; set; }
         public DateTime OrderDate { get; set; }
         public string Status { get; set; }
         public double TotalAmount { get; set; }
         public PaymentInfo Payment { get; set; }
+        public string PromotionCode { get; set; }
         public Address ShippingAddress { get; set; }
 
     }

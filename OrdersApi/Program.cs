@@ -1,9 +1,11 @@
 using Polly;
 using Polly.CircuitBreaker;
 using Microsoft.Extensions.Http.Resilience;
+using OrdersApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.RegisterConfiguration();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -31,12 +33,14 @@ builder.Services.ConfigureHttpClientDefaults(http =>
                 },
                 OnOpened = args =>
                 {
-                    Console.WriteLine("CB STATE: Open. Requests are temporarily blocked.");
+                    Console.Error.Write("CB STATE: Open. Requests are temporarily blocked.");
                     return default;
                 }
             });
         });
 });
+
+builder.Services.RegisterServices();
 
 var app = builder.Build();
 
@@ -49,39 +53,43 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/order", async (IHttpClientFactory httpClientFactory) =>
+app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory) =>
 {
-    var httpClient = httpClientFactory.CreateClient("paymentServiceSimulator");
-    string requestEndpoint = $"https://localhost:7275/flakeyPaymentService";
+    // Store order information in Azure Cosmos DB
+    await orderService.CreateOrder(order);
+    
+    // Process order payment
+    var httpClient = httpClientFactory.CreateClient("flakey3rdPartyPaymentClient");
+    string requestEndpoint = $"https://localhost:7275/createFlakey3rdPartyPayment";
 
     try
     {
-        HttpResponseMessage response =
-            await httpClient.GetAsync(requestEndpoint);
-
+        HttpResponseMessage response = await httpClient.GetAsync(requestEndpoint);
         if (response.IsSuccessStatusCode)
         {
-            var todo = await response.Content.ReadFromJsonAsync<dynamic>();
-            return Results.Ok(todo);
+            var result = await response.Content.ReadFromJsonAsync<string>();
+            Console.WriteLine($"(CB CLOSED) Request succeeded");
+            return Results.Ok(result);
         }
+        Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
         return Results.InternalServerError("Something went wrong with payment processing.");
     }
     catch (HttpRequestException ex)
     {
-        Console.WriteLine($"(CB CLOSED) Request failed without tripping circuit: {ex.Message}");
+        Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
         return Results.InternalServerError("(CB CLOSED) Unable to process payment. Please try again.");
     }
     catch (BrokenCircuitException ex)
     {
-        Console.WriteLine($"(CB OPEN) Request failed due to opened circuit: {ex.Message}");
+        Console.Error.WriteLine($"(CB OPEN) Request failed due to opened circuit");
         return Results.InternalServerError("(CB OPEN) Unable to process payment. Please try again later.");
     }
 });
 
-app.MapGet("/flakeyPaymentService", () =>
+app.MapGet("/createFlakey3rdPartyPayment", () =>
 {
     Random random = new Random();
-    if(random.Next(100) < 33)
+    if(random.Next(100) < 50)
     {
         return Results.InternalServerError("Error processing payment.");
     }
@@ -90,3 +98,17 @@ app.MapGet("/flakeyPaymentService", () =>
 });
 
 app.Run();
+
+static class ProgramExtensions
+{
+    public static void RegisterConfiguration(this WebApplicationBuilder builder)
+    {
+        builder.Services.AddOptions<CosmosOptions>()
+            .Bind(builder.Configuration.GetSection(nameof(CosmosOptions)));
+    }
+
+    public static void RegisterServices(this IServiceCollection services)
+    {
+        services.AddSingleton<OrderService, OrderService>();
+    }
+}
