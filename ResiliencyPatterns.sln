@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResiliencyPatterns.Web", "R
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlakeyPaymentService", "FlakeyPaymentService\FlakeyPaymentService.csproj", "{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QueryProducts", "QueryProducts\QueryProducts.csproj", "{157FE0C3-BEE2-45E8-A01D-9A0210E877F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{157FE0C3-BEE2-45E8-A01D-9A0210E877F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{157FE0C3-BEE2-45E8-A01D-9A0210E877F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{157FE0C3-BEE2-45E8-A01D-9A0210E877F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{157FE0C3-BEE2-45E8-A01D-9A0210E877F0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
