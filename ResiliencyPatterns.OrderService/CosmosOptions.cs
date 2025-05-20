@@ -1,4 +1,4 @@
-﻿namespace OrdersApi
+﻿namespace ResiliencyPatterns.OrderService
 {
     public class CosmosOptions
     {

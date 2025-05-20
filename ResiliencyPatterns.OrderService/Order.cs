@@ -1,10 +1,13 @@
-﻿namespace OrdersApi
+﻿namespace ResiliencyPatterns.OrderService
 {
+
+    using System.Collections.Generic;
+
     public class Order
     {
         public string Id { get; set; }
         public string CustomerId { get; set; }
-        public List<Item> Items { get; set; }
+        public List<Product> Products { get; set; } = new List<Product>() { new Product()};
         public DateTime OrderDate { get; set; }
         public string Status { get; set; }
         public double TotalAmount { get; set; }
@@ -14,7 +17,7 @@
 
     }
 
-    public class Item
+    public class Product
     {
         public string ProductId { get; set; }
         public string ProductName { get; set; }

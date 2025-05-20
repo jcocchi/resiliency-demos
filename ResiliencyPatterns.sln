@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.36105.23
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResiliencyPatterns.AppHost", "ResiliencyPatterns.AppHost\ResiliencyPatterns.AppHost.csproj", "{6831A9C1-C8BC-4C47-9F08-8D790CA9F4E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResiliencyPatterns.ServiceDefaults", "ResiliencyPatterns.ServiceDefaults\ResiliencyPatterns.ServiceDefaults.csproj", "{39C5BA34-10B3-460C-F9B4-D598A73855BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResiliencyPatterns.OrderService", "ResiliencyPatterns.OrderService\ResiliencyPatterns.OrderService.csproj", "{D940F003-E3E1-F0A1-9D9B-66B2EC8DFE1B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResiliencyPatterns.Web", "ResiliencyPatterns.Web\ResiliencyPatterns.Web.csproj", "{9601AAAD-BF36-8C98-9D1D-F62613235DDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlakeyPaymentService", "FlakeyPaymentService\FlakeyPaymentService.csproj", "{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6831A9C1-C8BC-4C47-9F08-8D790CA9F4E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6831A9C1-C8BC-4C47-9F08-8D790CA9F4E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6831A9C1-C8BC-4C47-9F08-8D790CA9F4E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6831A9C1-C8BC-4C47-9F08-8D790CA9F4E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39C5BA34-10B3-460C-F9B4-D598A73855BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39C5BA34-10B3-460C-F9B4-D598A73855BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39C5BA34-10B3-460C-F9B4-D598A73855BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39C5BA34-10B3-460C-F9B4-D598A73855BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D940F003-E3E1-F0A1-9D9B-66B2EC8DFE1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D940F003-E3E1-F0A1-9D9B-66B2EC8DFE1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D940F003-E3E1-F0A1-9D9B-66B2EC8DFE1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D940F003-E3E1-F0A1-9D9B-66B2EC8DFE1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9601AAAD-BF36-8C98-9D1D-F62613235DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9601AAAD-BF36-8C98-9D1D-F62613235DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9601AAAD-BF36-8C98-9D1D-F62613235DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9601AAAD-BF36-8C98-9D1D-F62613235DDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C9570E5C-E7A1-4C36-1BCA-E738FD103CE3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {42F2E5B5-054A-49D5-AFF4-1D7E7DFD1502}
+	EndGlobalSection
+EndGlobal

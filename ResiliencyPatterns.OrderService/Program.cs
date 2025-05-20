@@ -1,66 +1,68 @@
-using Polly;
+using System.Text.Json;
 using Polly.CircuitBreaker;
-using Microsoft.Extensions.Http.Resilience;
-using OrdersApi;
+using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Options;
+using ResiliencyPatterns.OrderService;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.RegisterConfiguration();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// Add service defaults & Aspire client integrations.
+builder.AddServiceDefaults_CircuitBreaker();
 
-builder.Services.ConfigureHttpClientDefaults(http =>
+builder.RegisterConfiguration();
+
+// Add services to the container.
+builder.Services.AddProblemDetails();
+builder.Services.AddOpenApi();
+
+// Configure Azure Cosmos DB Aspire integration
+var cosmosEndpoint = builder.Configuration.GetSection(nameof(CosmosOptions)).GetValue<string>("Endpoint");
+if (cosmosEndpoint is null)
 {
-    http.AddResilienceHandler(
-        "CustomPipeline",
-        static builder =>
+    throw new ArgumentException($"{nameof(IOptions<CosmosOptions>)} was not resolved through dependency injection.");
+}
+builder.AddAzureCosmosClient(
+    "cosmos",
+    settings =>
+    {
+        settings.AccountEndpoint = new Uri(cosmosEndpoint);
+        settings.Credential = new DefaultAzureCredential();
+        settings.DisableTracing = false;
+    },
+    clientOptions => {
+        clientOptions.ApplicationRegion = Regions.WestUS2;
+        clientOptions.UseSystemTextJsonSerializerWithOptions = new JsonSerializerOptions()
         {
-            builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-            {
-                // Customize and configure the circuit breaker logic.
-                SamplingDuration = TimeSpan.FromSeconds(10),
-                FailureRatio = 0.25,
-                MinimumThroughput = 3,
-                OnHalfOpened = args =>
-                {
-                    Console.WriteLine("CB STATE: Half open. Testing if circuit can be closed.");
-                    return default;
-                },
-                OnClosed = args =>
-                {
-                    Console.WriteLine("CB STATE: Closed. Requests can go through.");
-                    return default;
-                },
-                OnOpened = args =>
-                {
-                    Console.Error.Write("CB STATE: Open. Requests are temporarily blocked.");
-                    return default;
-                }
-            });
-        });
-});
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+    });
 
 builder.Services.RegisterServices();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "v1");
+    });
 }
 
-app.UseHttpsRedirection();
+// Configure the HTTP request pipeline.
+app.UseExceptionHandler();
 
 app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory) =>
 {
     // Store order information in Azure Cosmos DB
     await orderService.CreateOrder(order);
-    
+
     // Process order payment
     var httpClient = httpClientFactory.CreateClient("flakey3rdPartyPaymentClient");
-    string requestEndpoint = $"https://localhost:7275/createFlakey3rdPartyPayment";
+    httpClient.BaseAddress = new("https+http://flakeypaymentservice");
+    string requestEndpoint = $"/createFlakey3rdPartyPayment";
 
     try
     {
@@ -72,7 +74,7 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
             return Results.Ok(result);
         }
         Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
-        return Results.InternalServerError("Something went wrong with payment processing.");
+        return Results.InternalServerError("Something went wrong with payment processing. Request failed without tripping circuit.");
     }
     catch (HttpRequestException ex)
     {
@@ -86,16 +88,7 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
     }
 });
 
-app.MapGet("/createFlakey3rdPartyPayment", () =>
-{
-    Random random = new Random();
-    if(random.Next(100) < 50)
-    {
-        return Results.InternalServerError("Error processing payment.");
-    }
-
-    return Results.Ok("Successfully processed payment!");
-});
+app.MapDefaultEndpoints();
 
 app.Run();
 

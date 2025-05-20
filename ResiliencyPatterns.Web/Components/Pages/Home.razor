@@ -1,0 +1,80 @@
+﻿@page "/"
+@using ResiliencyPatterns.OrderService
+
+@inject OrderServiceClient _orderService
+
+<PageTitle>Home</PageTitle>
+
+<h1>Submit Orders</h1>
+
+<EditForm method="post" Model="Order" FormName="order-products" OnSubmit="SubmitOrder">
+    <label for="customerId" class="form-label">Customer ID:</label>
+    <InputText id="customerId" @bind-Value="Order.CustomerId" />
+    <br />
+    <br />
+
+    <div class="product-entry">
+        <label for="productId" class="form-label">Product ID:</label>
+        <InputText id="productId" @bind-Value="Order.Products[0].ProductId" />
+        <br />
+
+        <label for="productName" class="form-label">Product Name:</label>
+        <InputText id="productName" @bind-Value="Order.Products[0].ProductName" />
+        <br />
+
+        <label for="quantity" class="form-label">Quantity:</label>
+        <InputNumber id="quantity" @bind-Value="Order.Products[0].Quantity" type="number" />
+        <br />
+
+        <label for="price" class="form-label">Price:</label>
+        <InputNumber id="price" @bind-Value="Order.Products[0].Price" type="number" step="0.01" />
+        <br />
+        <br />
+
+        <button type="button">Add Product</button>
+    </div>
+
+    <br />
+    <br />
+    <button type="submit">Submit</button>
+</EditForm>
+
+@if(StatusCode != null & Message != null)
+{
+    <br />
+    <br />
+    <br />
+    <p role="status">Response Status Code: @StatusCode</p>
+    <p role="alert">Response Message: @Message</p>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    public Order Order { get; set; } = new();
+
+    public string StatusCode;
+    public string Message;
+
+    private async Task SubmitOrder()
+    {
+        Order.Id = Guid.NewGuid().ToString();
+        Order.OrderDate = DateTime.Now;
+        Order.Status = "New";
+        Order.TotalAmount = Order.Products.Sum(p => p.Quantity * p.Price);
+        Order.Payment = new PaymentInfo()
+        {
+            Paid = false
+        };
+
+        // Set response
+        var response = await _orderService.PostOrder(Order);
+        StatusCode = response.StatusCode.ToString();
+        Message = await response.Content.ReadAsStringAsync();
+
+        // Reset form
+        Order.CustomerId = "";
+        Order.Products = new List<Product>() { new Product() };
+
+        this.StateHasChanged();
+    }
+}
