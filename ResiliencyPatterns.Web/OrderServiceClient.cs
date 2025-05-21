@@ -19,7 +19,7 @@ namespace ResiliencyPatterns.Web
                 return new HttpResponseMessage()
                 {
                     StatusCode = HttpStatusCode.InternalServerError,
-                    Content = new StringContent("(CB OPEN) Unable to process payment.Please try again later.")
+                    Content = new StringContent("(CB OPEN) Unable to process payment. Please try again later.")
                 };
             }
         }

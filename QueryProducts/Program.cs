@@ -48,13 +48,13 @@ static async Task<QueryStats> RunQuery(Container container, string queryText)
     var query = new QueryDefinition(queryText);
 
     Console.WriteLine($"Running against container {container.Id}.");
-    Console.WriteLine($"\t* Query: {queryText}\n");
+    Console.WriteLine($"\t* Query: {query.QueryText}\n");
 
     var requestCharge = 0.0;
     var executionTime = new TimeSpan();
     var results = new List<dynamic>();
 
-    var resultSetIterator = container.GetItemQueryIterator<dynamic>(query, null, new QueryRequestOptions() { PopulateIndexMetrics = true });
+    var resultSetIterator = container.GetItemQueryIterator<dynamic>(query);
     while (resultSetIterator.HasMoreResults)
     {
         var response = await resultSetIterator.ReadNextAsync();

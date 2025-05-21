@@ -70,16 +70,11 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
         if (response.IsSuccessStatusCode)
         {
             var result = await response.Content.ReadFromJsonAsync<string>();
-            Console.WriteLine($"(CB CLOSED) Request succeeded");
+            Console.WriteLine($"(CB CLOSED) Request succeeded.");
             return Results.Ok(result);
         }
         Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
-        return Results.InternalServerError("Something went wrong with payment processing. Request failed without tripping circuit.");
-    }
-    catch (HttpRequestException ex)
-    {
-        Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
-        return Results.InternalServerError("(CB CLOSED) Unable to process payment. Please try again.");
+        return Results.InternalServerError("(CB CLOSED) Something went wrong with payment processing. Request failed without tripping circuit.");
     }
     catch (BrokenCircuitException ex)
     {
