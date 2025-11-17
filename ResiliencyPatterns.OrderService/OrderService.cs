@@ -13,9 +13,9 @@ namespace ResiliencyPatterns.OrderService
             _orders = db.GetContainer(cosmosOptions.Value.Container);
         }
 
-        public async Task CreateOrder(Order order)
+        public async Task<Order> CreateOrder(Order order)
         {
-            await _orders.UpsertItemAsync(order, new PartitionKey(order.CustomerId));
+            return await _orders.UpsertItemAsync(order, new PartitionKey(order.CustomerId));
         }
     }
 }

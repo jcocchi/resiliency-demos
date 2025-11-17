@@ -36,6 +36,11 @@ builder.AddAzureCosmosClient(
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
+        clientOptions.CosmosClientTelemetryOptions.CosmosThresholdOptions = new CosmosThresholdOptions()
+        {
+            PointOperationLatencyThreshold = TimeSpan.FromMilliseconds(1),
+            NonPointOperationLatencyThreshold = TimeSpan.FromMilliseconds(10)
+        };
     });
 
 builder.Services.RegisterServices();
@@ -57,7 +62,7 @@ app.UseExceptionHandler();
 app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory) =>
 {
     // Store order information in Azure Cosmos DB
-    await orderService.CreateOrder(order);
+    var orderResponse = await orderService.CreateOrder(order);
 
     // Process order payment
     var httpClient = httpClientFactory.CreateClient("flakey3rdPartyPaymentClient");
