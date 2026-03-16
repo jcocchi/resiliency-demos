@@ -73,34 +73,6 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            http.AddResilienceHandler(
-            "CustomResiliencePipeline",
-            static builder =>
-            {
-                builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
-                {
-                    // Customize and configure the circuit breaker logic.
-                    SamplingDuration = TimeSpan.FromSeconds(30),
-                    FailureRatio = 0.25,
-                    MinimumThroughput = 3,
-                    OnHalfOpened = args =>
-                    {
-                        Console.WriteLine("CB STATE: Half open. Testing if circuit can be closed.");
-                        return default;
-                    },
-                    OnClosed = args =>
-                    {
-                        Console.WriteLine("CB STATE: Closed. Requests can go through.");
-                        return default;
-                    },
-                    OnOpened = args =>
-                    {
-                        Console.Error.Write("CB STATE: Open. Requests are temporarily blocked.");
-                        return default;
-                    }
-                });
-            });
-
             // Turn on service discovery by default
             http.AddServiceDiscovery();
         });

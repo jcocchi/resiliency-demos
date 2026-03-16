@@ -2,75 +2,146 @@
 @using ResiliencyPatterns.OrderService
 
 @inject OrderServiceClient _orderService
+@inject ProductsClient _productsClient
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Submit Order</PageTitle>
 
-<h1>Submit Orders</h1>
+<h1>Submit Order</h1>
 
-<EditForm method="post" Model="Order" FormName="order-products" OnSubmit="SubmitOrder">
-    <label for="customerId" class="form-label">Customer ID:</label>
-    <InputText id="customerId" @bind-Value="Order.CustomerId" />
-    <br />
-    <br />
+@if (_productsUnavailable)
+{
+    <div class="alert alert-warning" role="alert">
+        <strong>(CB OPEN)</strong> Product catalog is temporarily unavailable. Please try again in a moment.
+    </div>
+}
 
-    <div class="product-entry">
-        <label for="productId" class="form-label">Product ID:</label>
-        <InputText id="productId" @bind-Value="Order.Products[0].ProductId" />
-        <br />
-
-        <label for="productName" class="form-label">Product Name:</label>
-        <InputText id="productName" @bind-Value="Order.Products[0].ProductName" />
-        <br />
-
-        <label for="quantity" class="form-label">Quantity:</label>
-        <InputNumber id="quantity" @bind-Value="Order.Products[0].Quantity" type="number" />
-        <br />
-
-        <br />
-
+<EditForm method="post" Model="Form" FormName="submit-order" OnSubmit="SubmitOrder">
+    <div class="mb-3">
+        <label class="form-label fw-semibold">Customer ID</label>
+        <InputText class="form-control" style="width:300px" @bind-Value="Form.CustomerId" />
     </div>
 
-    <br />
-    <br />
-    <button type="submit">Submit</button>
+    <table class="table table-bordered" style="width:560px">
+        <thead class="table-light">
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>In Stock</th>
+                <th style="width:110px">Qty to Order</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>@_fetchedProducts[0].Name</td>
+                <td>@_fetchedProducts[0].Price.ToString("C")</td>
+                <td>@_fetchedProducts[0].Inventory</td>
+                <td><InputNumber class="form-control form-control-sm" @bind-Value="Form.Qty0" min="0" /></td>
+            </tr>
+            <tr>
+                <td>@_fetchedProducts[1].Name</td>
+                <td>@_fetchedProducts[1].Price.ToString("C")</td>
+                <td>@_fetchedProducts[1].Inventory</td>
+                <td><InputNumber class="form-control form-control-sm" @bind-Value="Form.Qty1" min="0" /></td>
+            </tr>
+            <tr>
+                <td>@_fetchedProducts[2].Name</td>
+                <td>@_fetchedProducts[2].Price.ToString("C")</td>
+                <td>@_fetchedProducts[2].Inventory</td>
+                <td><InputNumber class="form-control form-control-sm" @bind-Value="Form.Qty2" min="0" /></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <button type="submit" class="btn btn-primary" disabled="@_productsUnavailable">Submit Order</button>
 </EditForm>
 
-@if(StatusCode != null & Message != null)
+@if (StatusCode is not null)
 {
-    <br />
-    <br />
-    <br />
-    <p role="status">Response Status Code: @StatusCode</p>
-    <p role="alert">Response Message: @Message</p>
+    <div class="mt-4">
+        <p><strong>Status:</strong> @StatusCode</p>
+        <p><strong>Message:</strong> @Message</p>
+    </div>
 }
 
 @code {
-    [SupplyParameterFromForm]
-    public Order Order { get; set; } = new();
+    // Set these to real product IDs and their categories from your products container
+    private static readonly (string Id, string Category)[] SampleProducts =
+    [
+        ("5e5330a5-dd48-4d8c-b9fd-5fcafb8fba7c", "Outdoors"),
+        ("1a32a915-50be-4b14-ac6a-2eb7d2f3a56d", "Industrial"),
+        ("815f93a5-42d1-464b-898b-b68b2b8e07ca", "Outdoors"),
+    ];
 
-    public string StatusCode;
-    public string Message;
+    private ProductInventory[] _fetchedProducts =
+    [
+        new ProductInventory(),
+        new ProductInventory(),
+        new ProductInventory(),
+    ];
+
+    private bool _productsUnavailable = false;
+
+    [SupplyParameterFromForm]
+    public OrderFormModel Form { get; set; } = new();
+
+    public string? StatusCode;
+    public string? Message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var inventories = await _productsClient.GetProductInventories(SampleProducts);
+        if (inventories.Count == 0)
+        {
+            _productsUnavailable = true;
+            return;
+        }
+        for (int i = 0; i < SampleProducts.Length; i++)
+        {
+            _fetchedProducts[i] = inventories.FirstOrDefault(x => x.Id == SampleProducts[i].Id)
+                ?? new ProductInventory { Id = SampleProducts[i].Id, Name = SampleProducts[i].Id };
+        }
+    }
 
     private async Task SubmitOrder()
     {
-        Order.Id = Guid.NewGuid().ToString();
-        Order.OrderDate = DateTime.Now;
-        Order.Status = "New";
-        Order.TotalAmount = Order.Products.Sum(p => p.Quantity * p.Price);
-        Order.Payment = new PaymentInfo()
+        var qtys = new[] { Form.Qty0, Form.Qty1, Form.Qty2 };
+        var products = _fetchedProducts
+            .Select((p, i) => new { p, qty = qtys[i] })
+            .Where(x => x.qty > 0)
+            .Select(x => new Product
+            {
+                ProductId = x.p.Id,
+                ProductName = x.p.Name,
+                Category = x.p.Category,
+                Quantity = x.qty,
+                Price = x.p.Price
+            })
+            .ToList();
+
+        var order = new Order
         {
-            Paid = false
+            Id = Guid.NewGuid().ToString(),
+            CustomerId = Form.CustomerId,
+            Products = products.Count > 0 ? products : [new Product()],
+            OrderDate = DateTime.Now,
+            Status = "New",
+            TotalAmount = products.Sum(p => p.Quantity * p.Price),
+            Payment = new PaymentInfo { Paid = false }
         };
 
-        // Set response
-        var response = await _orderService.PostOrder(Order);
+        var response = await _orderService.PostOrder(order);
         StatusCode = response.StatusCode.ToString();
         Message = await response.Content.ReadAsStringAsync();
 
-        // Reset form
-        Order.CustomerId = "";
-        Order.Products = new List<Product>() { new Product() };
+        Form = new();
+        StateHasChanged();
+    }
 
-        this.StateHasChanged();
+    public class OrderFormModel
+    {
+        public string CustomerId { get; set; } = "";
+        public int Qty0 { get; set; }
+        public int Qty1 { get; set; }
+        public int Qty2 { get; set; }
     }
 }

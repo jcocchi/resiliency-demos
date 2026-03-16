@@ -6,9 +6,14 @@ var orderService = builder.AddProject<Projects.ResiliencyPatterns_OrderService>(
     .WithReference(paymentService)
     .WaitFor(paymentService);
 
+var productsService = builder.AddProject<Projects.ResiliencyPatterns_ProductsService>("productsservice")
+    .WaitFor(orderService);
+
 builder.AddProject<Projects.ResiliencyPatterns_Web>("webfrontend")
     .WithExternalHttpEndpoints()
     .WithReference(orderService)
-    .WaitFor(orderService);
+    .WithReference(productsService)
+    .WaitFor(orderService)
+    .WaitFor(productsService);
 
 builder.Build().Run();

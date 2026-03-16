@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Http.Resilience;
+using Polly;
 using ResiliencyPatterns.Web;
 using ResiliencyPatterns.Web.Components;
 
@@ -15,6 +17,35 @@ builder.Services.AddOutputCache();
 builder.Services.AddHttpClient<OrderServiceClient>(client =>
     {
         client.BaseAddress = new("https+http://orderservice");
+    })
+    .AddResilienceHandler("OrderServiceCircuitBreaker", static builder =>
+    {
+        builder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+        {
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            FailureRatio = 0.25,
+            MinimumThroughput = 3,
+            OnHalfOpened = args =>
+            {
+                Console.WriteLine("CB STATE: Half open. Testing if circuit can be closed.");
+                return default;
+            },
+            OnClosed = args =>
+            {
+                Console.WriteLine("CB STATE: Closed. Requests can go through.");
+                return default;
+            },
+            OnOpened = args =>
+            {
+                Console.Error.Write("CB STATE: Open. Requests are temporarily blocked.");
+                return default;
+            }
+        });
+    });
+
+builder.Services.AddHttpClient<ProductsClient>(client =>
+    {
+        client.BaseAddress = new("https+http://productsservice");
     });
 
 var app = builder.Build();

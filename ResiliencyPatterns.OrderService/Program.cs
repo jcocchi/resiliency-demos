@@ -61,6 +61,9 @@ app.UseExceptionHandler();
 
 app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory) =>
 {
+    // Reserve inventory before attempting payment
+    await orderService.ReserveInventory(order);
+
     // Store order information in Azure Cosmos DB
     var orderResponse = await orderService.CreateOrder(order);
 
@@ -74,15 +77,20 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
         HttpResponseMessage response = await httpClient.GetAsync(requestEndpoint);
         if (response.IsSuccessStatusCode)
         {
+            await orderService.UpdateOrderStatus(orderResponse, "Confirmed");
             var result = await response.Content.ReadFromJsonAsync<string>();
             Console.WriteLine($"(CB CLOSED) Request succeeded.");
             return Results.Ok(result);
         }
+        await orderService.UpdateOrderStatus(orderResponse, "Failed");
+        await orderService.EmitPaymentFailedEvent(orderResponse);
         Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
         return Results.InternalServerError("(CB CLOSED) Something went wrong with payment processing. Request failed without tripping circuit.");
     }
     catch (BrokenCircuitException ex)
     {
+        await orderService.UpdateOrderStatus(orderResponse, "Failed");
+        await orderService.EmitPaymentFailedEvent(orderResponse);
         Console.Error.WriteLine($"(CB OPEN) Request failed due to opened circuit");
         return Results.InternalServerError("(CB OPEN) Unable to process payment. Please try again later.");
     }
