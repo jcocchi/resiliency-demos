@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.Http.Resilience;
+using Polly;
 using Polly.CircuitBreaker;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
@@ -8,7 +10,7 @@ using Azure.Identity;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
-builder.AddServiceDefaults_CircuitBreaker();
+builder.AddServiceDefaults_NoResilience();
 
 builder.RegisterConfiguration();
 
@@ -45,6 +47,36 @@ builder.AddAzureCosmosClient(
 
 builder.Services.RegisterServices();
 
+// Register named HttpClient for the flakey payment service with circuit breaker
+builder.Services.AddHttpClient("flakey3rdPartyPaymentClient", client =>
+    {
+        client.BaseAddress = new("https+http://flakeypaymentservice");
+    })
+    .AddResilienceHandler("PaymentCircuitBreaker", static resilienceBuilder =>
+    {
+        resilienceBuilder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+        {
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            FailureRatio = 0.25,
+            MinimumThroughput = 3,
+            OnHalfOpened = args =>
+            {
+                Console.WriteLine("CB STATE: Half open. Testing if circuit can be closed.");
+                return default;
+            },
+            OnClosed = args =>
+            {
+                Console.WriteLine("CB STATE: Closed. Requests can go through.");
+                return default;
+            },
+            OnOpened = args =>
+            {
+                Console.Error.Write("CB STATE: Open. Requests are temporarily blocked.");
+                return default;
+            }
+        });
+    });
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -69,7 +101,6 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
 
     // Process order payment
     var httpClient = httpClientFactory.CreateClient("flakey3rdPartyPaymentClient");
-    httpClient.BaseAddress = new("https+http://flakeypaymentservice");
     string requestEndpoint = $"/createFlakey3rdPartyPayment";
 
     try

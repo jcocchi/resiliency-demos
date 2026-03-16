@@ -63,7 +63,7 @@ public static class Extensions
         return builder;
     }
 
-    public static TBuilder AddServiceDefaults_CircuitBreaker<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    public static TBuilder AddServiceDefaults_NoResilience<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.ConfigureOpenTelemetry();
 

@@ -27,7 +27,7 @@ app.MapGet("/createFlakey3rdPartyPayment", () =>
     Random random = new Random();
     if (random.Next(100) < 66)
     {
-        return Results.BadRequest("Error processing payment.");
+        return Results.StatusCode(StatusCodes.Status500InternalServerError);
     }
 
     return Results.Ok("Successfully processed payment!");
