@@ -1,4 +1,5 @@
 ﻿@page "/"
+@rendermode InteractiveServer
 @using ResiliencyPatterns.OrderService
 
 @inject OrderServiceClient _orderService
@@ -54,6 +55,8 @@
 
     <button type="submit" class="btn btn-primary" disabled="@_productsUnavailable">Submit Order</button>
 </EditForm>
+
+<button class="btn btn-outline-secondary mt-2" @onclick="RefreshInventory">🔄 Refresh Inventory</button>
 
 @if (StatusCode is not null)
 {
@@ -133,6 +136,9 @@
         StatusCode = response.StatusCode.ToString();
         Message = await response.Content.ReadAsStringAsync();
 
+        // Refresh inventory to show the reservation effect
+        await RefreshInventory();
+
         Form = new();
         StateHasChanged();
     }
@@ -143,5 +149,19 @@
         public int Qty0 { get; set; }
         public int Qty1 { get; set; }
         public int Qty2 { get; set; }
+    }
+
+    private async Task RefreshInventory()
+    {
+        var inventories = await _productsClient.GetProductInventories(SampleProducts);
+        if (inventories.Count > 0)
+        {
+            _productsUnavailable = false;
+            for (int i = 0; i < SampleProducts.Length; i++)
+            {
+                _fetchedProducts[i] = inventories.FirstOrDefault(x => x.Id == SampleProducts[i].Id)
+                    ?? _fetchedProducts[i];
+            }
+        }
     }
 }
