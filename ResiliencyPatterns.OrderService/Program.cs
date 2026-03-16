@@ -12,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults_NoResilience();
 
+ILogger? circuitBreakerLogger = null;
+
 builder.RegisterConfiguration();
 
 // Add services to the container.
@@ -52,7 +54,7 @@ builder.Services.AddHttpClient("flakey3rdPartyPaymentClient", client =>
     {
         client.BaseAddress = new("https+http://flakeypaymentservice");
     })
-    .AddResilienceHandler("PaymentCircuitBreaker", static resilienceBuilder =>
+    .AddResilienceHandler("PaymentCircuitBreaker", resilienceBuilder =>
     {
         resilienceBuilder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
         {
@@ -61,23 +63,24 @@ builder.Services.AddHttpClient("flakey3rdPartyPaymentClient", client =>
             MinimumThroughput = 3,
             OnHalfOpened = args =>
             {
-                Console.WriteLine("CB STATE: Half open. Testing if circuit can be closed.");
+                circuitBreakerLogger?.LogWarning("CB STATE: Half open. Testing if circuit can be closed.");
                 return default;
             },
             OnClosed = args =>
             {
-                Console.WriteLine("CB STATE: Closed. Requests can go through.");
+                circuitBreakerLogger?.LogInformation("CB STATE: Closed. Requests can go through.");
                 return default;
             },
             OnOpened = args =>
             {
-                Console.Error.Write("CB STATE: Open. Requests are temporarily blocked.");
+                circuitBreakerLogger?.LogError("CB STATE: Open. Requests are temporarily blocked.");
                 return default;
             }
         });
     });
 
 var app = builder.Build();
+circuitBreakerLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("PaymentCircuitBreaker");
 
 if (app.Environment.IsDevelopment())
 {
@@ -91,8 +94,10 @@ if (app.Environment.IsDevelopment())
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory) =>
+app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) =>
 {
+    var logger = loggerFactory.CreateLogger("OrderEndpoint");
+
     // Reserve inventory before attempting payment
     await orderService.ReserveInventory(order);
 
@@ -110,19 +115,19 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
         {
             await orderService.UpdateOrderStatus(orderResponse, "Confirmed");
             var result = await response.Content.ReadFromJsonAsync<string>();
-            Console.WriteLine($"(CB CLOSED) Request succeeded.");
+            logger.LogInformation("(CB CLOSED) Request succeeded.");
             return Results.Ok(result);
         }
         await orderService.UpdateOrderStatus(orderResponse, "Failed");
         await orderService.EmitPaymentFailedEvent(orderResponse);
-        Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
+        logger.LogWarning("(CB CLOSED) Request failed without tripping circuit");
         return Results.InternalServerError("(CB CLOSED) Something went wrong with payment processing. Request failed without tripping circuit.");
     }
     catch (BrokenCircuitException ex)
     {
         await orderService.UpdateOrderStatus(orderResponse, "Failed");
         await orderService.EmitPaymentFailedEvent(orderResponse);
-        Console.Error.WriteLine($"(CB OPEN) Request failed due to opened circuit");
+        logger.LogWarning("(CB OPEN) Request failed due to opened circuit");
         return Results.InternalServerError("(CB OPEN) Unable to process payment. Please try again later.");
     }
 });
