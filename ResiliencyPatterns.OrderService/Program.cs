@@ -98,11 +98,11 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
 {
     var logger = loggerFactory.CreateLogger("OrderEndpoint");
 
-    // Reserve inventory before attempting payment
-    await orderService.ReserveInventory(order);
-
     // Store order information in Azure Cosmos DB
     var orderResponse = await orderService.CreateOrder(order);
+
+    // Reserve inventory before attempting payment
+    await orderService.ReserveInventory(order);
 
     // Process order payment
     var httpClient = httpClientFactory.CreateClient("flakey3rdPartyPaymentClient");
@@ -110,7 +110,7 @@ app.MapPost("/order", async (Order order, OrderService orderService, IHttpClient
 
     try
     {
-        HttpResponseMessage response = await httpClient.GetAsync(requestEndpoint);
+        HttpResponseMessage response = await httpClient.PostAsync(requestEndpoint, null);
         if (response.IsSuccessStatusCode)
         {
             await orderService.UpdateOrderStatus(orderResponse, "Confirmed");

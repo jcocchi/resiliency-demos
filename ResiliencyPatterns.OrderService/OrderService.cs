@@ -23,7 +23,7 @@ namespace ResiliencyPatterns.OrderService
         public async Task<Order> CreateOrder(Order order)
         {
             order.Status = "PendingPayment";
-            return await _orders.UpsertItemAsync(order, new PartitionKey(order.CustomerId));
+            return await _orders.CreateItemAsync(order, new PartitionKey(order.CustomerId));
         }
 
         public async Task ReserveInventory(Order order)

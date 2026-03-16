@@ -22,7 +22,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/createFlakey3rdPartyPayment", () =>
+app.MapPost("/createFlakey3rdPartyPayment", () =>
 {    
     Random random = new Random();
     if (random.Next(100) < 66)
