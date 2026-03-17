@@ -7,9 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ResiliencyPatterns.OrderService\ResiliencyPatterns.OrderService.csproj" />
     <ProjectReference Include="..\ResiliencyPatterns.ServiceDefaults\ResiliencyPatterns.ServiceDefaults.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.0.0" />
+    <PackageReference Include="Aspire.Microsoft.Azure.Cosmos" Version="9.3.0" />
+    <PackageReference Include="Azure.Identity" Version="1.14.0" />
+    <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.51.0-preview.0" />
   </ItemGroup>
 
 </Project>

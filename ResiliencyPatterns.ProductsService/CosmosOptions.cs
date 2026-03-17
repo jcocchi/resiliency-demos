@@ -1,4 +1,4 @@
-﻿namespace ResiliencyPatterns.OrderService
+namespace ResiliencyPatterns.ProductsService
 {
     public class CosmosOptions
     {
@@ -6,12 +6,10 @@
 
         public required string Database { get; init; }
 
-        public required string Container { get; init; }
-
-        public required string ProductsDatabase { get; init; }
-
         public required string ProductsContainer { get; init; }
 
         public required string EventsContainer { get; init; }
+
+        public required string LeasesContainer { get; init; }
     }
 }

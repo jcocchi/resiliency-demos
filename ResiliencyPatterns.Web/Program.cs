@@ -4,7 +4,7 @@ using ResiliencyPatterns.Web.Components;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
-builder.AddServiceDefaults_CircuitBreaker();
+builder.AddServiceDefaults_NoResilience();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -15,6 +15,11 @@ builder.Services.AddOutputCache();
 builder.Services.AddHttpClient<OrderServiceClient>(client =>
     {
         client.BaseAddress = new("https+http://orderservice");
+    });
+
+builder.Services.AddHttpClient<ProductsClient>(client =>
+    {
+        client.BaseAddress = new("https+http://productsservice");
     });
 
 var app = builder.Build();

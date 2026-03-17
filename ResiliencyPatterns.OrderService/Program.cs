@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.Extensions.Http.Resilience;
+using Polly;
 using Polly.CircuitBreaker;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
@@ -8,7 +10,9 @@ using Azure.Identity;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
-builder.AddServiceDefaults_CircuitBreaker();
+builder.AddServiceDefaults_NoResilience();
+
+ILogger? circuitBreakerLogger = null;
 
 builder.RegisterConfiguration();
 
@@ -45,7 +49,38 @@ builder.AddAzureCosmosClient(
 
 builder.Services.RegisterServices();
 
+// Register named HttpClient for the flakey payment service with circuit breaker
+builder.Services.AddHttpClient("flakey3rdPartyPaymentClient", client =>
+    {
+        client.BaseAddress = new("https+http://flakeypaymentservice");
+    })
+    .AddResilienceHandler("PaymentCircuitBreaker", resilienceBuilder =>
+    {
+        resilienceBuilder.AddCircuitBreaker(new HttpCircuitBreakerStrategyOptions
+        {
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            FailureRatio = 0.25,
+            MinimumThroughput = 3,
+            OnHalfOpened = args =>
+            {
+                circuitBreakerLogger?.LogWarning("CB STATE: Half open. Testing if circuit can be closed.");
+                return default;
+            },
+            OnClosed = args =>
+            {
+                circuitBreakerLogger?.LogInformation("CB STATE: Closed. Requests can go through.");
+                return default;
+            },
+            OnOpened = args =>
+            {
+                circuitBreakerLogger?.LogError("CB STATE: Open. Requests are temporarily blocked.");
+                return default;
+            }
+        });
+    });
+
 var app = builder.Build();
+circuitBreakerLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("PaymentCircuitBreaker");
 
 if (app.Environment.IsDevelopment())
 {
@@ -59,31 +94,40 @@ if (app.Environment.IsDevelopment())
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
-app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory) =>
+app.MapPost("/order", async (Order order, OrderService orderService, IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory) =>
 {
+    var logger = loggerFactory.CreateLogger("OrderEndpoint");
+
     // Store order information in Azure Cosmos DB
     var orderResponse = await orderService.CreateOrder(order);
 
+    // Reserve inventory before attempting payment
+    await orderService.ReserveInventory(order);
+
     // Process order payment
     var httpClient = httpClientFactory.CreateClient("flakey3rdPartyPaymentClient");
-    httpClient.BaseAddress = new("https+http://flakeypaymentservice");
     string requestEndpoint = $"/createFlakey3rdPartyPayment";
 
     try
     {
-        HttpResponseMessage response = await httpClient.GetAsync(requestEndpoint);
+        HttpResponseMessage response = await httpClient.PostAsync(requestEndpoint, null);
         if (response.IsSuccessStatusCode)
         {
+            await orderService.UpdateOrderStatus(orderResponse, "Confirmed");
             var result = await response.Content.ReadFromJsonAsync<string>();
-            Console.WriteLine($"(CB CLOSED) Request succeeded.");
+            logger.LogInformation("(CB CLOSED) Request succeeded.");
             return Results.Ok(result);
         }
-        Console.Error.WriteLine($"(CB CLOSED) Request failed without tripping circuit");
+        await orderService.UpdateOrderStatus(orderResponse, "Failed");
+        await orderService.EmitPaymentFailedEvent(orderResponse);
+        logger.LogWarning("(CB CLOSED) Request failed without tripping circuit");
         return Results.InternalServerError("(CB CLOSED) Something went wrong with payment processing. Request failed without tripping circuit.");
     }
     catch (BrokenCircuitException ex)
     {
-        Console.Error.WriteLine($"(CB OPEN) Request failed due to opened circuit");
+        await orderService.UpdateOrderStatus(orderResponse, "Failed");
+        await orderService.EmitPaymentFailedEvent(orderResponse);
+        logger.LogWarning("(CB OPEN) Request failed due to opened circuit");
         return Results.InternalServerError("(CB OPEN) Unable to process payment. Please try again later.");
     }
 });
